@@ -33,9 +33,9 @@ The scrawled message is scenery in the Bar. Understand "floor" or "sawdust" as t
 Neatness is a kind of value. The neatnesses are neat, scuffed, and trampled. The message has a neatness. The message is neat.
 
 Instead of examining the message:
-		increment score;
-		say "The message, neatly marked in the sawdust, reads...";
-		end the story finally.
+	- increment score;
+	- say "The message, neatly marked in the sawdust, reads...";
+	- end the story finally.
 
 Instead of examining the trampled message:
 	say "The message has been carelessly trampled, making it difficult to read. You can just distinguish the words...";
