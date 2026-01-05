@@ -13,6 +13,23 @@ Writer.Extensions = {
 	lists_without_preceding_blankline = true,
 }
 
+Writer.Block.Para = function(para)
+	--return Writer.Inlines(para.content)
+	return {Writer.Inlines(para.content)}
+end
+
+Writer.Inline.Space = function(str)
+	return " "
+end
+
+Writer.Block.Plain = function(p)
+	return Writer.Inlines(p.content)
+end
+
+Writer.Inline.SoftBreak = function(str)
+	return "\n"
+end
+
 local insidequote = false
 
 Writer.Inline.Str = function(str)
@@ -27,19 +44,6 @@ Writer.Inline.Quoted = function(str)
 	local result = Writer.Inlines(str.content)
 	insidequote = false
 	return "\"" .. result .. "\""
-end
-
-Writer.Inline.Space = function(str)
-	return " "
-end
-
--- TODO This probably doesn't work
--- Writer.Inline.SoftBreak = function(str)
--- 	return "\n\t"
--- end
-
-Writer.Inline.SoftBreak = function(str)
-	return "\n"
 end
 
 Writer.Inline.Code = function(code)
@@ -68,37 +72,17 @@ Writer.Block.CodeBlock = function(code)
 	return "Include (-\n" .. code.text .. "\n-)" .. after .. "."
 end
 
--- We override this to handle special cases with lists
-Writer.Blocks = function(blocks, sep)
-	sep = sep or pandoc.layout.blankline
-	local result = ""
-	for i, block in ipairs(blocks) do
-		local sep_foo = sep
-		if i == #blocks or ((block.tag == "Para" or block.tag == "Plain") and blocks[i+1] and (blocks[i+1].tag == "BulletList" or blocks[i+1].tag == "OrderedList")) then
-			sep_foo = "\n"
-		end
-		result = result .. Writer.Block(block) .. sep_foo
-	end
-	return result
-end
-
-Writer.Block.Para = function(para)
-	--return Writer.Inlines(para.content)
-	return {Writer.Inlines(para.content)}
-end
+local levels = {
+	"Volume",
+	"Book",
+	"Part",
+	"Chapter",
+	"Section"
+}
 
 local h1 = 0
 
 Writer.Block.Header = function(h)
-	-- Very Bad People Choose Sin
-	local levels = {
-		"Volume",
-		"Book",
-		"Part",
-		"Chapter",
-		"Section"
-	}
-
 	if h.level == 1 then
 	    h1 = h1 + 1
 	    if i7_story then
@@ -135,7 +119,28 @@ end
 
 Writer.Block.OrderedList = Writer.Block.BulletList
 
-Writer.Block.Plain = function(p)
-	return Writer.Inlines(p.content)
+Writer.Blocks = function(blocks, sep)
+	sep = sep or pandoc.layout.blankline
+	local result = ""
+	for i, block in ipairs(blocks) do
+		local sep_foo = sep
+		if i == #blocks or ((block.tag == "Para" or block.tag == "Plain") and blocks[i+1] and (blocks[i+1].tag == "BulletList" or blocks[i+1].tag == "OrderedList")) then
+			sep_foo = "\n"
+		end
+		result = result .. Writer.Block(block) .. sep_foo
+	end
+	return result
+end
+
+
+
+Reader = {}
+setmetatable(Reader, Reader)
+
+Reader.__call = function(input, opts)
+end
+
+function Reader(input, opts)
+    return pandoc.Doc({pandoc.Str(input)})
 end
 

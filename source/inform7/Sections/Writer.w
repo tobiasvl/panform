@@ -2,7 +2,7 @@ Writer.
 
 A Pandoc writer.
 
-@h Foo.
+@h Setup.
 
 @ First, we avoid some boilerplate using the //scaffolding -> https://pandoc.org/lua-filters.html#module-pandoc.scaffolding// module.
 =
@@ -23,16 +23,36 @@ Writer.Extensions = {
 	lists_without_preceding_blankline = true,
 }
 
-@ We keep track of whether we are inside a quote, to handle bracket syntax.
-=
-local insidequote = false
-
 @ Then we come to the parsing.
+
+@h Plain content.
+
+What it says on the tin.
+
+=
+Writer.Block.Para = function(para)
+	--return Writer.Inlines(para.content)
+	return {Writer.Inlines(para.content)}
+end
+
+Writer.Inline.Space = function(str)
+	return " "
+end
+
+Writer.Block.Plain = function(p)
+	return Writer.Inlines(p.content)
+end
+
+Writer.Inline.SoftBreak = function(str)
+	return "\n"
+end
 
 @h Strings.
 
-Text is just text, but if it contains unbalanced quotes, we toggle the insidequote state.
+We keep track of whether we are inside a quote, to handle bracket syntax.
 =
+local insidequote = false
+
 Writer.Inline.Str = function(str)
 	if (str.text:find("^\"") or str.text:find("\"$")) and not str.text:find("^\"[^\"]*\"$") then
 		insidequote = not insidequote
@@ -40,6 +60,12 @@ Writer.Inline.Str = function(str)
 	return str.text
 end
 
+@h Quoted.
+
+And this does the same, but for quoted text in a document with smart quotes.
+(It's best to read in Inform 7 source with smart quotes disabled, but we
+support it anyway.)
+=
 Writer.Inline.Quoted = function(str)
 	insidequote = true
 	local result = Writer.Inlines(str.content)
@@ -47,19 +73,11 @@ Writer.Inline.Quoted = function(str)
 	return "\"" .. result .. "\""
 end
 
-Writer.Inline.Space = function(str)
-	return " "
-end
+@h Inline code.
 
--- TODO This probably doesn't work
--- Writer.Inline.SoftBreak = function(str)
--- 	return "\n\t"
--- end
-
-Writer.Inline.SoftBreak = function(str)
-	return "\n"
-end
-
+We use inline code spans for two things: Text substitutions (inside quotes) and
+Inform 6 code (outside quotes).
+=
 Writer.Inline.Code = function(code)
 	if insidequote then
 		return "[" .. code.text .. "]"
@@ -68,6 +86,13 @@ Writer.Inline.Code = function(code)
 	end
 end
 
+@h Comments.
+
+Inform 7 comments are written as square brackets. We can support a few different
+markup elements as comments, like strikeout/strikethrough (for code that's
+commented out) and block quotes (for explanatory comments).
+
+=
 Writer.Inline.Strikeout = function(strike)
 	return "[" .. Writer.Inlines(strike.content) .. "]"
 end
@@ -76,6 +101,11 @@ Writer.Block.BlockQuote = function(bq)
 	return "[\n" .. Writer.Blocks(bq.content) .. "\n]"
 end
 
+@h Code blocks.
+
+Code blocks in Inform 7 are either included Inform 6 code, or Preform grammar.
+
+=
 -- TODO indent each line
 Writer.Block.CodeBlock = function(code)
 	local after = ""
@@ -86,37 +116,30 @@ Writer.Block.CodeBlock = function(code)
 	return "Include (-\n" .. code.text .. "\n-)" .. after .. "."
 end
 
--- We override this to handle special cases with lists
-Writer.Blocks = function(blocks, sep)
-	sep = sep or pandoc.layout.blankline
-	local result = ""
-	for i, block in ipairs(blocks) do
-		local sep_foo = sep
-		if i == #blocks or ((block.tag == "Para" or block.tag == "Plain") and blocks[i+1] and (blocks[i+1].tag == "BulletList" or blocks[i+1].tag == "OrderedList")) then
-			sep_foo = "\n"
-		end
-		result = result .. Writer.Block(block) .. sep_foo
-	end
-	return result
-end
+@h Headings.
 
-Writer.Block.Para = function(para)
-	--return Writer.Inlines(para.content)
-	return {Writer.Inlines(para.content)}
-end
+Markdown has 6 heading levels. Inform 7 has 5, but it also has a story title.
 
+A mnemonic to remember the levels is "Very Bad People Choose Sin".
+
+=
+local levels = {
+	"Volume",
+	"Book",
+	"Part",
+	"Chapter",
+	"Section"
+}
+
+@
+
+Then we convert the headings, keeping track of how many top-level headings we
+have seen, to avoid converting a document with more than one story title.
+
+=
 local h1 = 0
 
 Writer.Block.Header = function(h)
-	-- Very Bad People Choose Sin
-	local levels = {
-		"Volume",
-		"Book",
-		"Part",
-		"Chapter",
-		"Section"
-	}
-
 	if h.level == 1 then
 	    h1 = h1 + 1
 	    if i7_story then
@@ -139,6 +162,12 @@ Writer.Block.Header = function(h)
 	return levels[h.level - 1] .. " - " .. Writer.Inlines(h.content)
 end
 
+@h Lists.
+
+Since Markdown and Pandoc don't preserve indents, we use lists to represent
+indented blocks.
+
+=
 local indent_level = 0
 
 Writer.Block.BulletList = function(bl)
@@ -153,6 +182,23 @@ end
 
 Writer.Block.OrderedList = Writer.Block.BulletList
 
-Writer.Block.Plain = function(p)
-	return Writer.Inlines(p.content)
+@
+
+And then we have to make sure that Pandoc does not insert extra blank lines
+before lists.
+
+=
+Writer.Blocks = function(blocks, sep)
+	sep = sep or pandoc.layout.blankline
+	local result = ""
+	for i, block in ipairs(blocks) do
+		local sep_foo = sep
+		if i == #blocks or ((block.tag == "Para" or block.tag == "Plain") and blocks[i+1] and (blocks[i+1].tag == "BulletList" or blocks[i+1].tag == "OrderedList")) then
+			sep_foo = "\n"
+		end
+		result = result .. Writer.Block(block) .. sep_foo
+	end
+	return result
 end
+
+
