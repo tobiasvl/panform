@@ -1,7 +1,6 @@
-Title: inform7
-Author: Tobias Langhoff
-Purpose: Inform 7 writer for Pandoc
-Language: Lua
+Writer.
+
+A Pandoc writer.
 
 @h Foo.
 

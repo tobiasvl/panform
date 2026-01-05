@@ -2,7 +2,7 @@ Colony {
     default: pattern "GitHubPages" breadcrumbs "Panform: //Panform//"
 
     member: "Panform" at "../README.md" to "index.html" breadcrumbs ""
-    member: "inform7" at "inform7.inweb" to "inform7.html"
+    member: "inform7" at "inform7"
     member: "IFM" at "ifm.inweb" to "ifm.html"
     member: "IWFM" at "iwfm.inweb" to "iwfm.html"
 
